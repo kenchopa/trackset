@@ -4,10 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
-
-	"google.golang.org/api/googleapi/transport"
-	"google.golang.org/api/youtube/v3"
 
 	yt "github.com/kenchopa/trackset/pkg/youtube"
 )
@@ -17,45 +13,12 @@ var (
 	maxResults = flag.Int64("max-results", 25, "Max YouTube results")
 )
 
-const developerKey = "AIzaSyA6uiyrlYQhIyfF4cxkLUSvi47TJ7juWVE"
-
 func main() {
 	flag.Parse()
-	yt.Search()
-	client := &http.Client{
-		Transport: &transport.APIKey{Key: developerKey},
-	}
 
-	service, err := youtube.New(client)
-	if err != nil {
-		log.Fatalf("Error creating new YouTube client: %v", err)
-	}
-
-	// Make the API call to YouTube.
-	parts := []string{"id", "snippet"}
-
-	call := service.Search.List(parts).
-		Q(*query).
-		MaxResults(*maxResults)
-	response, err := call.Do()
-	handleError(err, "")
-
-	// Group video, channel, and playlist results in separate lists.
-	videos := make(map[string]string)
-	channels := make(map[string]string)
-	playlists := make(map[string]string)
-
-	// Iterate through each item and add it to the correct list.
-	for _, item := range response.Items {
-		switch item.Id.Kind {
-		case "youtube#video":
-			videos[item.Id.VideoId] = item.Snippet.Title
-		case "youtube#channel":
-			channels[item.Id.ChannelId] = item.Snippet.Title
-		case "youtube#playlist":
-			playlists[item.Id.PlaylistId] = item.Snippet.Title
-		}
-	}
+	q := *query
+	limit := *maxResults
+	videos, channels, playlists := yt.Search(q, limit)
 
 	printIDs("Videos", videos)
 	printIDs("Channels", channels)
