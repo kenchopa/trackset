@@ -2,46 +2,47 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 
+	"github.com/davecgh/go-spew/spew"
+	"github.com/joho/godotenv"
+	hunt "github.com/kenchopa/trackset/pkg/songhunter"
 	yt "github.com/kenchopa/trackset/pkg/youtube"
 )
 
 var (
-	query      = flag.String("query", "kenchopa", "Search term")
-	maxResults = flag.Int64("max-results", 25, "Max YouTube results")
+	video = flag.String("video", "", "Video URL to get a tracklist from most used for music set (dj, festival, live concerts...).")
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	flag.Parse()
 
-	q := *query
-	limit := *maxResults
-	videos, channels, playlists := yt.Search(q, limit)
+	videoId := yt.GetVideoIdFromYoutubeUrl(*video)
 
-	printIDs("Videos", videos)
-	printIDs("Channels", channels)
-	printIDs("Playlists", playlists)
-}
+	comments := yt.GetCommentThreads(videoId, 100)
 
-// Print the ID and title of each result in a list as well as a name that
-// identifies the list. For example, print the word section name "Videos"
-// above a list of video search results, followed by the video ID and title
-// of each matching video.
-func printIDs(sectionName string, matches map[string]string) {
-	fmt.Printf("%v:\n", sectionName)
-	for id, title := range matches {
-		fmt.Printf("[%v] %v\n", id, title)
-	}
-	fmt.Printf("\n\n")
-}
+	songs := []string{}
+	for _, comment := range comments {
+		songsPerComment := hunt.SearchTrackPattern(comment.Content)
+		songs = append(songs, songsPerComment...)
 
-func handleError(err error, message string) {
-	if message == "" {
-		message = "Error making API call"
+		for _, reply := range comment.Children {
+			songsPerReply := hunt.SearchTrackPattern(reply.Content)
+			songs = append(songs, songsPerReply...)
+		}
 	}
-	if err != nil {
-		log.Fatalf(message+": %v", err.Error())
-	}
+
+	spew.Dump(songs)
+
+	//fmt.Println(re.ReplaceAllString(str, substitution))
+
+	//fmt.Println(re.ReplaceAllString(str, substitution))
+
+	//comments := yt.GetCommentThreads(v, 100)
+	//spew.Dump(comments)
 }
